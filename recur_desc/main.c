@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "lex.h"
 
@@ -22,7 +23,7 @@ int T_(int v);
 int F();
 
 int yyval;
-int pos;
+int pos = 1;
 int start_pos;
 
 int token;
@@ -32,7 +33,27 @@ void match(int ch){
 		token = yylex();
 		return;
 	}
-	printf("%d : error: expect:%c got:%c\n",start_pos,ch,token);
+
+	static char expect[100];
+	static char token_str[100];
+	if(ch == NUM)
+		strcpy(expect,"NUM");
+	else{
+		expect[0] = ch;
+		expect[1] = 0;
+	}
+
+	if(token == NUM)
+		strcpy(token_str,"NUM");
+	else if(token == END)
+		strcpy(token_str,"END");
+	else{
+		token_str[0] = token;
+		token_str[1] = 0;
+	}
+
+	printf("%d : error: expect:%s got:%s\n",start_pos,expect,token_str);
+	exit(-1);
 	token = yylex();
 }
 
@@ -71,7 +92,7 @@ int T_(int v){
 		printf("T'->/FT'\n");
 		return T_(v / F());
 	}else{
-		printf("T'->epsilon");
+		printf("T'->epsilon\n");
 		return v;
 	}
 }
@@ -80,9 +101,9 @@ int F(){
 	int v;
 	if(token == '('){
 		token = yylex();
+		printf("F->(E)\n");
 		v = E();
 		match(')');
-		printf("F->(E)\n");
 		return v;
 	}
 	v = yyval;
@@ -92,10 +113,16 @@ int F(){
 }
 
 int main(){
+	
+	printf(">>");
 	token = yylex();
 
+	int v = E();
 
-	printf("= %d\n",E());
+	if(token == END)
+		printf("= %d\n",v);
+	else
+		printf("%d :syntax error: an expression followed by illegal token\n",start_pos);
 	
 
 	return 0;
