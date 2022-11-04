@@ -196,7 +196,7 @@ int parse(FILE *f){
                 return -1;
             }
             state_stack[++top] = cur->num; // 依据goto表项压入状态
-            printf("------------------------\n");
+//            printf("------------------------\n");
             calc_res(prod_num);  // 根据产生式计算结果
             print_prod(prod_num); // 打印规约使用的产生式
             printf("------------------------\n");
