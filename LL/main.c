@@ -1,26 +1,25 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "lex.h"
 #include "parser.h"
 
-char *get_str(char *str,int num);
-extern int table[1000][1000];
+int main(int argc,char **argv) {
+    if(argc <= 1) {
+        fprintf(stderr, "no input file!\n");
+        exit(-1);
+    }
 
-int main() {
-    FILE *input = fopen("expression.txt","r");
+    FILE *input = fopen(argv[1],"r");
+    if(input == NULL){
+        fprintf(stderr, "failed to open file %s\n",argv[1]);
+        exit(-1);
+    }
 
     char s1[100],s2[100];
     int terminal[] = {NUM,'+','*','(',')',0};
 
     construct_table();
-    for(int i = 257;i <= 261;i ++){
-        for(int j = 0;j <= 5;j ++){
-            get_str(s1,i);
-            get_str(s2,terminal[j]);
-            printf("(%s,%s)  :  ",s1,s2);
-            print_prod(table[i][terminal[j]]);
-        }
-    }
 
     printf("***************************\n");
     parse(input);

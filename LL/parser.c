@@ -35,7 +35,7 @@ int pos = 1;
 // F->(E)         8
 // F->num         9
 
-int states[STACK_SIZE] = {END,E};
+int stack[STACK_SIZE] = {END, E};
 int top = 1;
 
 production prods[] = {
@@ -143,6 +143,7 @@ int FIRST(const int alpha[],int size,int res[]){
     return s;
 }
 
+// debug function
 static void print_set(int a[],int n){
     char str[100];
     for (int i = 0; i < n; i++)
@@ -160,27 +161,27 @@ void construct_table(){
             table[i][j] = -1 ; // ERROR
 
     for(int i = 0;i < NUM_PRODUCTIONS;i ++){
-        printf("handling production:");
-        print_prod(i);
+//        printf("handling production:");
+//        print_prod(i);
         size = FIRST(prods[i].body,prods[i].size,f);
-        printf("FIRST:");
-        print_set(f,size);
+//        printf("FIRST:");
+//        print_set(f,size);
 
         for(int j =0;j < size;j ++){
             if(f[j] != EPSILON) {
-                printf("(%s,", get_str(tmp,prods[i].head));
-                printf("%s)\n", get_str(tmp,f[j]));
+//                printf("(%s,", get_str(tmp,prods[i].head));
+//                printf("%s)\n", get_str(tmp,f[j]));
                 table[prods[i].head][f[j]] = i;
             }
             else{
                 for(int k = 0;k < follow_size[prods[i].head - 257];k++) {
-                    printf("(%s,", get_str(tmp,prods[i].head));
-                    printf("%s)\n", get_str(tmp,follow[prods[i].head - 257][k]));
+//                    printf("(%s,", get_str(tmp,prods[i].head));
+//                    printf("%s)\n", get_str(tmp,follow[prods[i].head - 257][k]));
                     table[prods[i].head][follow[prods[i].head - 257][k]] = i;
                 }
             }
         }
-        printf("-------------------------------\n");
+//        printf("-------------------------------\n");
     }
 
 }
@@ -201,12 +202,12 @@ int parse(FILE *fp){
     int X;
     char str[100];
     while(top >= 0){
-        X = states[top];
+        X = stack[top];
         if(X >= 0 && X <= 256){ // terminal symbol
             if(X == token){
                 -- top;
                 printf("at column %d:got: %s \n", start_pos ,get_str(str,token));
-                print_set(states,top+1);
+                print_set(stack, top + 1);
                 token = yylex();
             }else{
                 printf("syntax_error:want :%s  ", get_str(str,X));
@@ -216,15 +217,15 @@ int parse(FILE *fp){
         }else { // non-terminal symbol
             item = table[X][token];
             if (item == -1) {
-                syntax_error(states[top], token);
+                syntax_error(stack[top], token);
                 return -1;
             }
             -- top;
             for(int i = prods[item].size - 1;i >= 0;i--)
-                states[++top] = prods[item].body[i];
+                stack[++top] = prods[item].body[i];
             printf("at column %d:got: %s ,use ", start_pos ,get_str(str,token));
             print_prod(item);
-            print_set(states,top+1);
+            print_set(stack, top + 1);
         }
         printf("------------------------------\n");
     }
