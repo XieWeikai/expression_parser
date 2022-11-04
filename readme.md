@@ -1290,3 +1290,170 @@ expected: END * + - / , got: NUM
 
 ### flex和bison
 
+使用词法分析器生成器flex和语法分析器生成器bison可以很方便的构造需要的语法分析器，在`yyac`目录下使用这两个工具完成了对表达式文法的分析和求值。
+
+#### 语法分析
+
+bison内部使用LALR(1)来进行语法分析，由于在bison中可以使用结合性和优先级来解决文法二义性的问题，故在这次实验中考虑修改表达式文法，让文法更简单易读，修改后的表达式文法如下
+
+```
+E-> E + E
+  | E - E
+  | E * E
+  | E / E
+  | (E)
+  | NUM
+```
+
+只要规定四则运算是左结合的，并且+-的优先级低于*/，语法分析器就能正确的按照希望的效果进行移进和规约并完成表达式的求值。
+
+书写bison输入文件`calc.y`内容如下
+
+```c
+%{
+#include <stdio.h>
+
+int yylex(); // 对flex生成的yylex的声明，语法分析通过这个函数拿到token
+
+void yyerror(const char* msg) {printf("%s !\n",msg);}  // 出错时打印错误信息
+%}
+
+%token NUM   // 需要定义一个token NUM，后面可以生成头文件供使用
+
+// 越靠上方的运算符声明则优先级越低
+// 故 + - 优先级低于 * /
+%left '+' '-'   // 声明+ - 是左结合的
+%left '*' '/'   // 声明* / 是左结合的
+
+%%
+
+S   :   E '\n'        { printf("ans = %d\n", $1); return 0;}  // 输入为表达式加换行
+    ;
+
+// 下面为表达式的文法
+// 每条产生式定义对应的计算规则和规约使用的产生式
+E   :   E '+' E         { $$ = $1 + $3; printf("use E->E+E to reduce\n");}
+    |   E '-' E         { $$ = $1 - $3; printf("use E->E-E to reduce\n");}
+    |   E '*' E         { $$ = $1 * $3; printf("use E->E*E to reduce\n");}
+    |   E '/' E         { $$ = $1 / $3; printf("use E->E/E to reduce\n");}
+    |   NUM           { $$ = $1; printf("use E->NUM to reduce\n");}
+    |   '(' E ')'       { $$ = $2; printf("use E->(E) to reduce\n");}
+    ;
+
+%%
+
+// 主程序
+int main() {
+    return yyparse(); 
+}
+```
+
+文件内容解释见上面的注释。
+
+#### 词法分析
+
+词法分析只需要识别整数和几个运算符即可，对应flex输入文件`calc.l`如下
+
+```c
+%{
+#include "y.tab.h"  // bison生成的头文件，有token的声明 如下面用到的NUM
+%}
+
+%%
+[0-9]+          { yylval = atoi(yytext); return NUM; }  // 识别正整数
+[ \t\r]         {/* do nothing, just skip whitespace */}
+[-/+*()\n]      { return yytext[0]; }  // 各运算符
+.               { return 0; /* end when meet everything else */ }
+%%
+
+// 读到EOF时结束，不从别的输入流继续
+int yywrap(void) { 
+    return 1;
+}
+```
+
+#### 程序构建及测试
+
+本程序相关文件见目录`yyac`，目录内容如下
+
+```bash
+.
+├── calc.l
+├── calc.y
+└── makefile
+```
+
+`calc.l`为词法分析文件，`calc.y`为语法分析文件，`makefile`为为了方便构建可执行文件而写的，其内容如下
+
+```makefile
+calc : lex.yy.c y.tab.c y.tab.h
+	gcc -o calc lex.yy.c y.tab.c
+
+lex.yy.c : calc.l
+	flex calc.l
+
+y.tab.c y.tab.h : calc.y
+	bison -yd calc.y
+
+clean:
+	rm calc lex.yy.c y.tab.* *.output
+```
+
+构建程序首先需要进入`yacc`目录下，输入如下命令即可
+
+```bash
+# 若有make工具只需要一条命令即可
+make   
+
+# 若没有make工具，使用如下命令来构建可执行文件
+flex calc.l   # 生成词法分析器相关代码
+bison -yd calc.y # 生成语法分析器相关代码  -y参数指明生成y.tab.c作为输出文件 -d参数指明要生成头文件，头文件供calc.l使用
+gcc -o calc lex.yy.c y.tab.c  # 编译为可执行文件
+```
+
+测试输入`3 * (3*(1+2) - 1) / 2`，程序输出如下
+
+```bash
+3 * (3*(1+2) - 1) / 2
+use E->NUM to reduce
+use E->NUM to reduce
+use E->NUM to reduce
+use E->NUM to reduce
+use E->E+E to reduce
+use E->(E) to reduce
+use E->E*E to reduce
+use E->NUM to reduce
+use E->E-E to reduce
+use E->(E) to reduce
+use E->E*E to reduce
+use E->NUM to reduce
+use E->E/E to reduce
+ans = 12
+```
+
+可以看到输出了规约使用的产生式并输出了计算结果，尝试输入有语法错误的表达式`3 * (3*(1+2) - ( 1) / 2`，输出结果如下
+
+```bash
+3 * (3*(1+2) - ( 1) / 2
+use E->NUM to reduce
+use E->NUM to reduce
+use E->NUM to reduce
+use E->NUM to reduce
+use E->E+E to reduce
+use E->(E) to reduce
+use E->E*E to reduce
+use E->NUM to reduce
+use E->(E) to reduce
+use E->NUM to reduce
+use E->E/E to reduce
+use E->E-E to reduce
+syntax error !
+```
+
+---
+
+## 总结
+
+这次语法分析实验中，我依次使用了递归下降、LL(1)、LR(1)和flex+bison的方式来实现了对表达式文法的语法分析，经过这次实验，我对手写语法分析常用的递归下降更加熟悉，学会了手写语法分析的方法。通过实现LL(1)语法分析程序，我对非递归的自顶向下语法分析方法更加熟悉，明白如何构造预测分析表，如何通过预测分析表来完成语法分析。通过实现LR(1)语法分析程序，我对自底向上的语法分析了解更加深刻，更加熟悉了构造识别活前缀的DFA的方法以及构造action table的方法。最后通过flex+bison构造了一个语法分析程序，学会了如何使用bison以及如何将其与之前学习过的flex结合使用的方法。
+
+本次语法分析的全部源代码均已经上传到github，链接为[https://github.com/XieWeikai/expression_parser](https://github.com/XieWeikai/expression_parser) ，目前还是私有仓库，在作业截止后将会设置为公有仓库。

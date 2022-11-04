@@ -3,7 +3,7 @@
 
 int yylex();
 
-void yyerror(const char* msg) {}
+void yyerror(const char* msg) {printf("%s !\n",msg);}
 %}
 
 %token NUM
@@ -13,16 +13,15 @@ void yyerror(const char* msg) {}
 
 %%
 
-S   :   S E '\n'        { printf("ans = %d\n", $2); }
-    |   /* empty */     { /* empty */ }
+S   :   E '\n'        { printf("ans = %d\n", $1); return 0;}
     ;
 
-E   :   E '+' E         { $$ = $1 + $3; printf("use E->E+E to reduse\n");}
-    |   E '-' E         { $$ = $1 - $3; printf("use E->E-E to reduse\n");}
-    |   E '*' E         { $$ = $1 * $3; printf("use E->E*E to reduse\n");}
-    |   E '/' E         { $$ = $1 / $3; printf("use E->E/E to reduse\n");}
-    |   NUM           { $$ = $1; printf("use E->NUM to reduse\n");}
-    |   '(' E ')'       { $$ = $2; printf("use E->(E) to reduse\n");}
+E   :   E '+' E         { $$ = $1 + $3; printf("use E->E+E to reduce\n");}
+    |   E '-' E         { $$ = $1 - $3; printf("use E->E-E to reduce\n");}
+    |   E '*' E         { $$ = $1 * $3; printf("use E->E*E to reduce\n");}
+    |   E '/' E         { $$ = $1 / $3; printf("use E->E/E to reduce\n");}
+    |   NUM           { $$ = $1; printf("use E->NUM to reduce\n");}
+    |   '(' E ')'       { $$ = $2; printf("use E->(E) to reduce\n");}
     ;
 
 %%
